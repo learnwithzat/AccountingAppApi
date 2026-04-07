@@ -8,6 +8,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+
     JwtModule.registerAsync({
       global: true,
       imports: [ConfigModule],
@@ -17,19 +18,17 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       }),
       inject: [ConfigService],
     }),
+
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        host: config.get<string>('DB_HOST', 'localhost'),
-        port: config.get<number>('DB_PORT', 5432),
-        username: config.get<string>('DB_USER', 'postgres'),
-        password: config.get<string>('DB_PASSWORD', '8100'),
-        database: config.get<string>('DB_NAME', 'SimpleAcc1'),
+        url: config.get<string>('DATABASE_URL'), // ✅ Single line connection
         autoLoadEntities: true,
         synchronize: config.get<string>('NODE_ENV') !== 'production',
       }),
     }),
+
     SeedModule,
     AuthModule,
   ],
