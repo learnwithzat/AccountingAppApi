@@ -21,51 +21,51 @@ async function bootstrap() {
 
   const port = config.get<number>('PORT') || 5000;
 
-  /* 🔒 Security */
   app.use(helmet());
 
-  /* 🌐 CORS (FIXED) */
-  const origins = config.get<string>('CORS_ORIGIN')?.split(',') || [
-    'http://localhost:3000',
-    'https://app.zatgo.online',
-  ];
-
-  app.enableCors({
-    origin: (origin, callback) => {
-      // allow non-browser requests (like Postman)
-      if (!origin) return callback(null, true);
-
-      if (origins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error(`CORS blocked: ${origin}`), false);
-    },
-    credentials: true,
-    methods: 'GET,POST,PUT,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type,Authorization',
-  });
-
-  /* ⚠️ Handle preflight (important for Render) */
+  /* 🔥 FORCE CORS HEADERS (IMPORTANT) */
   app.use((req: any, res: any, next: any) => {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'https://app.zatgo.online',
+    ];
+
+    const origin = req.headers.origin;
+
+    if (allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+    }
+
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization',
+    );
+
+    res.header(
+      'Access-Control-Allow-Methods',
+      'GET, POST, PUT, DELETE, OPTIONS',
+    );
+
+    res.header('Access-Control-Allow-Credentials', 'true');
+
+    /* ✅ HANDLE PREFLIGHT */
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
     }
+
     next();
   });
 
-  /* 🧾 Validation */
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-    }),
-  );
+  /* (optional but fine to keep) */
+  app.enableCors({
+    origin: ['http://localhost:3000', 'https://app.zatgo.online'],
+    credentials: true,
+  });
 
-  /* 🔗 Prefix */
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
   app.setGlobalPrefix('api');
 
-  /* 🧠 Tenant */
   app.use(tenantMiddleware);
 
   await app.listen(port);
