@@ -56,7 +56,9 @@ async function bootstrap() {
 
   await app.listen(port);
 
-  logger.log(`🚀 Server running: http://localhost:${port}/api`);
+  logger.log(
+    `🚀 Server running: https://accountingappapi-b52i.onrender.com:${port}/api`,
+  );
 }
 
 bootstrap().catch((err) => {
