@@ -1,13 +1,21 @@
 // src/user/user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  Index,
+} from 'typeorm';
 import { Company } from '../company/company.entity';
 
 @Entity()
+@Index(['username', 'company'], { unique: true }) // ✅ unique per company
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  // ❗ remove global unique (see below)
+  @Column()
   username: string;
 
   @Column()

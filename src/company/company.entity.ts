@@ -1,5 +1,5 @@
 // src/company/company.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { User } from '../user/user.entity';
 
 @Entity()
@@ -13,9 +13,38 @@ export class Company {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ nullable: true })
   phoneNumber: string;
+
+  @Column({ unique: true })
+  slug: string;
+
+  @Column({ default: 'free' })
+  plan: string; // free, basic, premium, etc.
+
+  @Column({ type: 'timestamptz', nullable: true })
+  trialStart: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  trialEnd: Date;
+
+  @Column({ default: false })
+  isSubscribed: boolean; // manual payment status
+
+  @Column({ default: true })
+  isActive: boolean; // account active/inactive
 
   @OneToMany(() => User, (user) => user.company)
   users: User[];
+
+  // ✅ Computed helper
+  get isActiveSubscription(): boolean {
+    return this.isSubscribed || this.isTrialActive();
+  }
+
+  isTrialActive(): boolean {
+    if (!this.trialEnd) return false;
+    const now = new Date();
+    return now <= this.trialEnd;
+  }
 }

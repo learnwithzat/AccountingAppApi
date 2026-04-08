@@ -11,53 +11,66 @@ import * as bcrypt from 'bcrypt';
 export class CompanyService {
   constructor(
     @InjectRepository(Company)
-    private companyRepo: Repository<Company>,
+    private readonly companyRepo: Repository<Company>,
 
     @InjectRepository(User)
-    private userRepo: Repository<User>,
+    private readonly userRepo: Repository<User>,
   ) {}
 
+  /** Find company by ID */
+  async findById(companyId: string): Promise<Company> {
+    const company = await this.companyRepo.findOne({
+      where: { id: companyId },
+      relations: ['users'],
+    });
+    if (!company) throw new BadRequestException('Company not found');
+    return company;
+  }
+
+  /** Save company */
+  async save(company: Company): Promise<Company> {
+    return this.companyRepo.save(company);
+  }
+
+  /** Register a new company + admin user */
   async registerCompany(dto: RegisterCompanyDto) {
     const { companyName, username, email, phoneNumber, password } = dto;
 
-    // 🔹 Check existing username
-    const existingUser = await this.userRepo.findOne({
-      where: { username },
-    });
+    const existingUser = await this.userRepo.findOne({ where: { username } });
+    if (existingUser) throw new BadRequestException('Username already exists');
 
-    if (existingUser) {
-      throw new BadRequestException('Username already exists');
-    }
-
-    // 🔹 Check existing company email
     const existingCompany = await this.companyRepo.findOne({
       where: { email },
     });
-
-    if (existingCompany) {
+    if (existingCompany)
       throw new BadRequestException('Company email already exists');
-    }
 
-    // 🔹 Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 🔹 Create company
+    // 10-day trial
+    const now = new Date();
+    const trialEnd = new Date();
+    trialEnd.setDate(now.getDate() + 10);
+
     const company = this.companyRepo.create({
       companyName,
       email,
       phoneNumber,
+      slug: this.generateSlug(companyName),
+      plan: 'free',
+      trialStart: now,
+      trialEnd,
+      isSubscribed: false, // manual payment status
+      isActive: true,
     });
-
     await this.companyRepo.save(company);
 
-    // 🔹 Create admin user under company
     const user = this.userRepo.create({
       username,
       password: hashedPassword,
       role: 'admin',
       company,
     });
-
     await this.userRepo.save(user);
 
     return {
@@ -65,5 +78,33 @@ export class CompanyService {
       companyId: company.id,
       username: user.username,
     };
+  }
+
+  /** Check if trial is active */
+  isTrialActive(company: Company) {
+    return company.isTrialActive();
+  }
+
+  /** Activate manual subscription */
+  async activateSubscription(companyId: string) {
+    const company = await this.findById(companyId);
+    company.isSubscribed = true; // ✅ use isSubscribed
+    return this.save(company);
+  }
+
+  /** Deactivate subscription */
+  async deactivateSubscription(companyId: string) {
+    const company = await this.findById(companyId);
+    company.isSubscribed = false; // ✅ use isSubscribed
+    return this.save(company);
+  }
+
+  /** Generate slug */
+  private generateSlug(name: string) {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[\s\W-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
   }
 }

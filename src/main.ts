@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import * as express from 'express'; // ✅ Needed for express.raw()
 
 /* 🧠 Tenant Middleware */
 const tenantMiddleware = (req: any, _: any, next: () => void) => {
@@ -56,7 +57,7 @@ async function bootstrap() {
     next();
   });
 
-  /* (optional but fine to keep) */
+  /* Enable NestJS CORS (optional but safe) */
   app.enableCors({
     origin: ['http://localhost:3000', 'https://app.zatgo.online'],
     credentials: true,
@@ -64,12 +65,14 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
+  /* 🔹 Stripe webhook needs raw body */
+  app.use('/webhook/stripe', express.raw({ type: 'application/json' }));
+
   app.setGlobalPrefix('api');
 
   app.use(tenantMiddleware);
 
   await app.listen(port);
-
   console.log(`🚀 Server running on http://localhost:${port}/api`);
 }
 

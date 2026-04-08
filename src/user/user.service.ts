@@ -12,7 +12,7 @@ export class UserService {
   ) {}
 
   findByUsername(username: string) {
-    return this.repo.findOne({ where: { username } });
+    return this.repo.findOne({ where: { username }, relations: ['company'] });
   }
 
   create(userData: Partial<User>) {
