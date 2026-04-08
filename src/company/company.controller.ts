@@ -23,25 +23,45 @@ export class CompanyController {
     }
 
     return {
-      plan: company.plan, // 'free' | 'basic' | 'pro'
+      plan: company.plan,
       isSubscribed: company.isSubscribed,
       isActiveSubscription: company.isActiveSubscription,
       trialEnd: company.trialEnd,
     };
   }
 
-  // New GET endpoint to fetch all companies
   @UseGuards(JwtAuthGuard)
   @Get()
   async getAllCompanies() {
     const companies = await this.companyService.findAll();
-    return companies.map((c) => ({
-      id: c.id,
-      name: c.companyName,
-      plan: c.plan,
-      isSubscribed: c.isSubscribed,
-      isActiveSubscription: c.isActiveSubscription,
-      trialEnd: c.trialEnd,
-    }));
+
+    const today = new Date();
+
+    return companies.map((c) => {
+      const trialEnd = new Date(c.trialEnd);
+
+      // difference in milliseconds
+      const diffTime = trialEnd.getTime() - today.getTime();
+
+      // convert to days
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      return {
+        id: c.id,
+        name: c.companyName,
+        plan: c.plan,
+        isSubscribed: c.isSubscribed,
+        isActiveSubscription: c.isActiveSubscription,
+        trialStart: c.trialStart,
+        trialEnd: c.trialEnd,
+
+        // ✅ Positive = days left, Negative = expired
+        balanceDays: diffDays,
+
+        // optional helper flags
+        isExpired: diffDays < 0,
+        daysLeft: diffDays > 0 ? diffDays : 0,
+      };
+    });
   }
 }
