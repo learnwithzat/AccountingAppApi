@@ -22,12 +22,26 @@ export class CompanyController {
       return { statusCode: 404, message: 'Company not found' };
     }
 
-    // Example subscription status mapping
     return {
       plan: company.plan, // 'free' | 'basic' | 'pro'
       isSubscribed: company.isSubscribed,
       isActiveSubscription: company.isActiveSubscription,
       trialEnd: company.trialEnd,
     };
+  }
+
+  // New GET endpoint to fetch all companies
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async getAllCompanies() {
+    const companies = await this.companyService.findAll();
+    return companies.map((c) => ({
+      id: c.id,
+      name: c.companyName,
+      plan: c.plan,
+      isSubscribed: c.isSubscribed,
+      isActiveSubscription: c.isActiveSubscription,
+      trialEnd: c.trialEnd,
+    }));
   }
 }

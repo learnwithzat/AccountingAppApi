@@ -59,7 +59,11 @@ async function bootstrap() {
 
   /* Enable NestJS CORS (optional but safe) */
   app.enableCors({
-    origin: ['http://localhost:3000', 'https://app.zatgo.online'],
+    origin: [
+      'http://localhost:3000',
+      'https://app.zatgo.online',
+      'https://admin.zf.zatgo.online',
+    ],
     credentials: true,
   });
 

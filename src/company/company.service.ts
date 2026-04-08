@@ -99,6 +99,10 @@ export class CompanyService {
     return this.save(company);
   }
 
+  async findAll() {
+    return this.companyRepo.find(); // Or however you fetch all companies
+  }
+
   /** Generate slug */
   private generateSlug(name: string) {
     return name
