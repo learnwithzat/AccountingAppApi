@@ -1,5 +1,6 @@
 // src/user/user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Company } from '../company/company.entity';
 
 @Entity()
 export class User {
@@ -10,5 +11,13 @@ export class User {
   username: string;
 
   @Column()
-  password: string; // hashed
+  password: string;
+
+  @Column({ default: 'admin' })
+  role: string;
+
+  @ManyToOne(() => Company, (company) => company.users, {
+    onDelete: 'CASCADE',
+  })
+  company: Company;
 }

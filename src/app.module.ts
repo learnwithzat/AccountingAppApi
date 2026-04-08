@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SeedModule } from './seed/seed.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CompanyModule } from './company/company.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
     SeedModule,
     AuthModule,
+    CompanyModule,
   ],
 })
 export class AppModule {}
