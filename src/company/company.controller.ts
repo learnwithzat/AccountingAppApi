@@ -1,8 +1,16 @@
-// src/company/company.controller.ts
-import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  UseGuards,
+  Put,
+} from '@nestjs/common';
 import { CompanyService } from './company.service';
 import { RegisterCompanyDto } from './dto/register-company.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { UpdatePlanDto } from './dto/plan.dto';
 
 @Controller('company')
 export class CompanyController {
@@ -34,16 +42,11 @@ export class CompanyController {
   @Get()
   async getAllCompanies() {
     const companies = await this.companyService.findAll();
-
     const today = new Date();
 
     return companies.map((c) => {
-      const trialEnd = new Date(c.trialEnd);
-
-      // difference in milliseconds
-      const diffTime = trialEnd.getTime() - today.getTime();
-
-      // convert to days
+      const trialEnd = c.trialEnd ? new Date(c.trialEnd) : null;
+      const diffTime = trialEnd ? trialEnd.getTime() - today.getTime() : 0;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       return {
@@ -54,14 +57,23 @@ export class CompanyController {
         isActiveSubscription: c.isActiveSubscription,
         trialStart: c.trialStart,
         trialEnd: c.trialEnd,
-
-        // ✅ Positive = days left, Negative = expired
         balanceDays: diffDays,
-
-        // optional helper flags
         isExpired: diffDays < 0,
         daysLeft: diffDays > 0 ? diffDays : 0,
       };
     });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put(':id/plan')
+  async updatePlan(@Param('id') id: string, @Body() dto: UpdatePlanDto) {
+    const company = await this.companyService.findById(id);
+
+    if (!company) {
+      return { statusCode: 404, message: 'Company not found' };
+    }
+
+    await this.companyService.updatePlan(id, dto.plan);
+    return { statusCode: 200, message: 'Plan updated successfully' };
   }
 }

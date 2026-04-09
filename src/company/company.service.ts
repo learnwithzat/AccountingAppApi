@@ -47,10 +47,9 @@ export class CompanyService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 10-day trial
     const now = new Date();
     const trialEnd = new Date();
-    trialEnd.setDate(now.getDate() + 10);
+    trialEnd.setDate(now.getDate() + 10); // 10-day trial
 
     const company = this.companyRepo.create({
       companyName,
@@ -60,7 +59,7 @@ export class CompanyService {
       plan: 'free',
       trialStart: now,
       trialEnd,
-      isSubscribed: false, // manual payment status
+      isSubscribed: false,
       isActive: true,
     });
     await this.companyRepo.save(company);
@@ -80,27 +79,49 @@ export class CompanyService {
     };
   }
 
-  /** Check if trial is active */
-  isTrialActive(company: Company) {
-    return company.isTrialActive();
-  }
-
-  /** Activate manual subscription */
-  async activateSubscription(companyId: string) {
+  /** Update company plan */
+  async updatePlan(companyId: string, newPlan: string) {
     const company = await this.findById(companyId);
-    company.isSubscribed = true; // ✅ use isSubscribed
+
+    company.plan = newPlan;
+
+    if (newPlan === 'free') {
+      company.isSubscribed = false;
+      const now = new Date();
+      company.trialStart = now;
+      const trialEnd = new Date();
+      trialEnd.setDate(now.getDate() + 10);
+      company.trialEnd = trialEnd;
+    } else {
+      company.isSubscribed = true;
+      company.trialStart = null; // OK if entity nullable
+      company.trialEnd = null; // OK if entity nullable
+    }
+
     return this.save(company);
   }
 
-  /** Deactivate subscription */
+  /* Activate manual subscription */
+  async activateSubscription(companyId: string) {
+    const company = await this.findById(companyId);
+    company.isSubscribed = true;
+    return this.save(company);
+  }
+
+  /* Deactivate subscription */
   async deactivateSubscription(companyId: string) {
     const company = await this.findById(companyId);
-    company.isSubscribed = false; // ✅ use isSubscribed
+    company.isSubscribed = false;
     return this.save(company);
   }
 
   async findAll() {
-    return this.companyRepo.find(); // Or however you fetch all companies
+    return this.companyRepo.find();
+  }
+  /** Check if trial is active */
+  isTrialActive(company: Company): boolean {
+    if (!company.trialEnd) return false;
+    return company.trialEnd.getTime() > new Date().getTime();
   }
 
   /** Generate slug */

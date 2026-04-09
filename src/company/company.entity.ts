@@ -23,10 +23,10 @@ export class Company {
   plan: string; // free, basic, premium, etc.
 
   @Column({ type: 'timestamptz', nullable: true })
-  trialStart: Date;
+  trialStart: Date | null;
 
   @Column({ type: 'timestamptz', nullable: true })
-  trialEnd: Date;
+  trialEnd: Date | null;
 
   @Column({ default: false })
   isSubscribed: boolean; // manual payment status
