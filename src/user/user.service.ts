@@ -19,4 +19,9 @@ export class UserService {
     const user = this.repo.create(userData);
     return this.repo.save(user);
   }
+  findAdminByCompany(companyId: string) {
+    return this.repo.findOne({
+      where: { company: { id: companyId }, role: 'admin' },
+    });
+  }
 }

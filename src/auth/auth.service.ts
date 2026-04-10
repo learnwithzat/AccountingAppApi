@@ -82,7 +82,10 @@ export class AuthService {
   async registerCompany(dto: RegisterCompanyDto) {
     const result = await this.companyService.registerCompany(dto);
 
-    const adminUser = await this.userService.findByUsername(result.username);
+    const company = await this.companyService.findById(result.companyId);
+
+    const adminUser = await this.userService.findAdminByCompany(company.id);
+
     if (!adminUser) throw new BadRequestException('Admin user not found');
 
     const payload = {

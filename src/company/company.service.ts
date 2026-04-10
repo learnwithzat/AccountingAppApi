@@ -1,4 +1,3 @@
-// src/company/company.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,69 +16,77 @@ export class CompanyService {
     private readonly userRepo: Repository<User>,
   ) {}
 
-  /** Find company by ID */
+  /* ───── FIND ───── */
   async findById(companyId: string): Promise<Company> {
     const company = await this.companyRepo.findOne({
       where: { id: companyId },
       relations: ['users'],
     });
+
     if (!company) throw new BadRequestException('Company not found');
+
     return company;
   }
 
-  /** Save company */
-  async save(company: Company): Promise<Company> {
-    return this.companyRepo.save(company);
-  }
-
-  /** Register a new company + admin user */
+  /* ───── REGISTER (ERP VERSION) ───── */
   async registerCompany(dto: RegisterCompanyDto) {
-    const { companyName, username, email, phoneNumber, password } = dto;
+    const existingUser = await this.userRepo.findOne({
+      where: { username: dto.username },
+    });
 
-    const existingUser = await this.userRepo.findOne({ where: { username } });
     if (existingUser) throw new BadRequestException('Username already exists');
 
     const existingCompany = await this.companyRepo.findOne({
-      where: { email },
+      where: { email: dto.email },
     });
+
     if (existingCompany)
       throw new BadRequestException('Company email already exists');
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     const now = new Date();
     const trialEnd = new Date();
-    trialEnd.setDate(now.getDate() + 10); // 10-day trial
+    trialEnd.setDate(now.getDate() + 10);
 
     const company = this.companyRepo.create({
-      companyName,
-      email,
-      phoneNumber,
-      slug: this.generateSlug(companyName),
+      companyName: dto.companyName,
+      email: dto.email,
+      phoneNumber: dto.phoneNumber,
+      slug: this.generateSlug(dto.companyName),
+
       plan: 'free',
       trialStart: now,
       trialEnd,
       isSubscribed: false,
       isActive: true,
+
+      /* ERP DEFAULTS */
+      country: dto.country || 'IN',
+      taxSystem: dto.taxSystem || 'GST',
+      defaultTaxRate: dto.defaultTaxRate || 18,
+      currency: dto.currency || 'INR',
+      invoicePrefix: dto.invoicePrefix || 'INV',
     });
+
     await this.companyRepo.save(company);
 
     const user = this.userRepo.create({
-      username,
+      username: dto.username,
       password: hashedPassword,
       role: 'admin',
       company,
     });
+
     await this.userRepo.save(user);
 
     return {
       message: 'Company registered successfully',
       companyId: company.id,
-      username: user.username,
     };
   }
 
-  /** Update company plan */
+  /* ───── UPDATE PLAN ───── */
   async updatePlan(companyId: string, newPlan: string) {
     const company = await this.findById(companyId);
 
@@ -87,49 +94,78 @@ export class CompanyService {
 
     if (newPlan === 'free') {
       company.isSubscribed = false;
+
       const now = new Date();
       company.trialStart = now;
+
       const trialEnd = new Date();
       trialEnd.setDate(now.getDate() + 10);
       company.trialEnd = trialEnd;
     } else {
       company.isSubscribed = true;
-      company.trialStart = null; // OK if entity nullable
-      company.trialEnd = null; // OK if entity nullable
+      company.trialStart = null;
+      company.trialEnd = null;
     }
 
-    return this.save(company);
+    return this.companyRepo.save(company);
   }
 
-  /* Activate manual subscription */
-  async activateSubscription(companyId: string) {
-    const company = await this.findById(companyId);
-    company.isSubscribed = true;
-    return this.save(company);
+  /* ───── UPDATE SETTINGS ───── */
+  async updateSettings(
+    id: string,
+    body: {
+      country: string;
+      taxSystem: string;
+      defaultTaxRate: number;
+      currency: string;
+      invoicePrefix?: string;
+    },
+  ) {
+    return this.companyRepo.update(id, {
+      country: body.country,
+      taxSystem: body.taxSystem,
+      defaultTaxRate: body.defaultTaxRate,
+      currency: body.currency,
+      invoicePrefix: body.invoicePrefix,
+    });
   }
 
-  /* Deactivate subscription */
-  async deactivateSubscription(companyId: string) {
-    const company = await this.findById(companyId);
-    company.isSubscribed = false;
-    return this.save(company);
-  }
-
+  /* ───── FIND ALL ───── */
   async findAll() {
     return this.companyRepo.find();
   }
-  /** Check if trial is active */
-  isTrialActive(company: Company): boolean {
-    if (!company.trialEnd) return false;
-    return company.trialEnd.getTime() > new Date().getTime();
-  }
 
-  /** Generate slug */
+  /* ───── SLUG ───── */
   private generateSlug(name: string) {
     return name
       .toLowerCase()
       .trim()
       .replace(/[\s\W-]+/g, '-')
       .replace(/^-+|-+$/g, '');
+  }
+
+  async activateSubscription(companyId: string) {
+    const company = await this.findById(companyId);
+
+    company.isSubscribed = true;
+    company.isActive = true;
+
+    // optional: remove trial limits
+    company.trialStart = null;
+    company.trialEnd = null;
+
+    return this.companyRepo.save(company);
+  }
+  async deactivateSubscription(companyId: string) {
+    const company = await this.findById(companyId);
+
+    company.isSubscribed = false;
+    company.isActive = false;
+
+    return this.companyRepo.save(company);
+  }
+  isTrialActive(company: Company): boolean {
+    if (!company.trialEnd) return false;
+    return new Date(company.trialEnd).getTime() > Date.now();
   }
 }

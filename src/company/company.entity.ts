@@ -1,4 +1,3 @@
-// src/company/company.entity.ts
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { User } from '../user/user.entity';
 
@@ -19,9 +18,11 @@ export class Company {
   @Column({ unique: true })
   slug: string;
 
+  /* ───── PLAN ───── */
   @Column({ default: 'free' })
-  plan: string; // free, basic, premium, etc.
+  plan: string;
 
+  /* ───── TRIAL ───── */
   @Column({ type: 'timestamptz', nullable: true })
   trialStart: Date | null;
 
@@ -29,22 +30,39 @@ export class Company {
   trialEnd: Date | null;
 
   @Column({ default: false })
-  isSubscribed: boolean; // manual payment status
+  isSubscribed: boolean;
 
   @Column({ default: true })
-  isActive: boolean; // account active/inactive
+  isActive: boolean;
 
+  /* ───── ERP SETTINGS ───── */
+
+  @Column({ default: 'IN' })
+  country: string;
+
+  @Column({ default: 'GST' })
+  taxSystem: string;
+
+  @Column({ default: 18 })
+  defaultTaxRate: number;
+
+  @Column({ default: 'INR' })
+  currency: string;
+
+  @Column({ nullable: true })
+  invoicePrefix: string;
+
+  /* ───── RELATION ───── */
   @OneToMany(() => User, (user) => user.company)
   users: User[];
 
-  // ✅ Computed helper
+  /* ───── HELPERS ───── */
   get isActiveSubscription(): boolean {
     return this.isSubscribed || this.isTrialActive();
   }
 
   isTrialActive(): boolean {
     if (!this.trialEnd) return false;
-    const now = new Date();
-    return now <= this.trialEnd;
+    return new Date() <= this.trialEnd;
   }
 }
