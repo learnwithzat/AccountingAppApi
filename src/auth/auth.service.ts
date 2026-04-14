@@ -98,4 +98,12 @@ export class AuthService {
 
     return { access_token: this.jwtService.sign(payload), ...result };
   }
+
+  /** Validate user for JWT Strategy */
+  async validateUser(userId: string): Promise<any> {
+    // Use the correct method to find user by ID
+    const user = await this.userService.findById(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+    return user;
+  }
 }

@@ -6,6 +6,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class UserService {
+  findById(userId: string) {
+    return this.repo.findOne({ where: { id: userId } });
+  }
   constructor(
     @InjectRepository(User)
     private repo: Repository<User>,
