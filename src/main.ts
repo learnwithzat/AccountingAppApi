@@ -9,8 +9,15 @@ import * as express from 'express';
 
 /* 🧠 Tenant Middleware */
 const tenantMiddleware = (req: any, _: any, next: () => void) => {
-  const subdomain =
-    req.hostname?.split('.')?.length > 2 ? req.hostname.split('.')[0] : null;
+  const parts = req.hostname?.split('.') || [];
+  let subdomain = null;
+
+  // Support both production (tenant.zatgo.online) and local (tenant.localhost)
+  if (parts.length > 2) {
+    subdomain = parts[0];
+  } else if (parts.length === 2 && parts[1] === 'localhost') {
+    subdomain = parts[0];
+  }
 
   req.tenantId = req.headers['x-tenant-id'] || subdomain || null;
   next();
@@ -37,11 +44,17 @@ async function bootstrap() {
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id'],
   });
 
   /* ✅ Global validation */
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   /* 🧠 Tenant Middleware */
   app.use(tenantMiddleware);
