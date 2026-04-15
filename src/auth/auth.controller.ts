@@ -1,45 +1,43 @@
 import {
   Controller,
   Post,
-  Body,
   Get,
-  UseGuards,
-  Request,
+  Body,
   HttpCode,
   HttpStatus,
+  Request,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterCompanyDto } from '../company/dto/register-company.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Public } from '../common/public.decorator';
+import { RegisterDto } from './dto/register.dto';
+
+class SignInDto {
+  username!: string;
+  password!: string;
+}
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private authService: AuthService) {}
 
-  // 🔹 Login user
-  @Post('login')
-  async login(@Body() body: LoginDto) {
-    return this.authService.login(body);
-  }
-
-  // 🔹 Register company + admin user
-  @Post('register')
-  async register(@Body() body: RegisterCompanyDto) {
-    return this.authService.registerCompany(body);
-  }
-
-  // 🔹 Get current user profile (Session Check)
-  @UseGuards(JwtAuthGuard)
-  @Get('me')
-  async getProfile(@Request() req) {
-    return req.user;
-  }
-
-  // 🔹 Logout
-  @Post('logout')
+  @Public() // Bypasses the global JwtAuthGuard
   @HttpCode(HttpStatus.OK)
-  async logout() {
-    return { message: 'Logged out successfully' };
+  @Post('login')
+  async login(@Body() signInDto: SignInDto) {
+    return this.authService.login(signInDto.username, signInDto.password);
+  }
+
+  @Public() // Also bypasses guards
+  @HttpCode(HttpStatus.CREATED)
+  @Post('register')
+  async register(@Body() registerDto: RegisterDto) {
+    // Registration creates its own tenant context internally
+    return this.authService.register(registerDto);
+  }
+
+  @Get('me')
+  getProfile(@Request() req) {
+    // This endpoint is protected by the global JwtAuthGuard
+    return req.user;
   }
 }

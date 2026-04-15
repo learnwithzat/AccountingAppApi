@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from './auth/auth.module';
+import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { SeedModule } from './seed/seed.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CompanyModule } from './company/company.module';
-import { BillingModule } from './billing/billing.module';
-import { UserModule } from './user/user.module';
-import { InvoiceModule } from './sales/invoices/invoice.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { UsersModule } from './users/users.module';
+import { CommonModule } from './common/common.module';
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './common/jwt-auth.guard';
+import { TenantAuthGuard } from './tenants/tenant-auth.guard';
 
 @Module({
   imports: [
@@ -33,12 +34,20 @@ import { InvoiceModule } from './sales/invoices/invoice.module';
       }),
     }),
 
-    SeedModule,
-    UserModule,
+    TenantsModule,
+    UsersModule,
+    CommonModule,
     AuthModule,
-    CompanyModule,
-    InvoiceModule,
-    BillingModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: TenantAuthGuard,
+    },
   ],
 })
 export class AppModule {}
