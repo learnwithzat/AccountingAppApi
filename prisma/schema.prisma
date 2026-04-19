@@ -1,0 +1,264 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+//////////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////////
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum RoleType {
+  OWNER
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+//////////////////////////////////////////////////////
+// TENANT (ORG / WORKSPACE)
+//////////////////////////////////////////////////////
+
+model Tenant {
+  id     String       @id @default(uuid())
+  name   String
+  slug   String       @unique
+  status TenantStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+  memberships   Membership[]
+  companies     Company[]
+  branches      Branch[]
+  roles         Role[]
+  subscriptions Subscription[]
+  auditLogs     AuditLog[]
+
+  @@index([slug])
+}
+
+//////////////////////////////////////////////////////
+// USER (GLOBAL IDENTITY)
+//////////////////////////////////////////////////////
+
+model User {
+  id       String @id @default(uuid())
+  email    String @unique
+  username String @unique
+  password String
+  name     String
+
+  isActive      Boolean @default(true)
+  emailVerified Boolean @default(false)
+
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+
+  @@index([username])
+  @@index([email])
+}
+
+//////////////////////////////////////////////////////
+// MEMBERSHIP (USER ↔ TENANT)
+//////////////////////////////////////////////////////
+
+model Membership {
+  id String @id @default(uuid())
+
+  userId   String
+  tenantId String
+  roleId   String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+//////////////////////////////////////////////////////
+// ROLE (RBAC PER TENANT)
+//////////////////////////////////////////////////////
+
+model Role {
+  id   String   @id @default(uuid())
+  name String
+  type RoleType
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  permissions RolePermission[]
+  memberships Membership[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+//////////////////////////////////////////////////////
+// PERMISSION (NORMALIZED RBAC)
+//////////////////////////////////////////////////////
+
+model Permission {
+  id    String @id @default(uuid())
+  key   String @unique
+  label String
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  id String @id @default(uuid())
+
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+//////////////////////////////////////////////////////
+// COMPANY (TENANT SCOPED)
+//////////////////////////////////////////////////////
+
+model Company {
+  id   String @id @default(uuid())
+  name String
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  branches Branch[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+//////////////////////////////////////////////////////
+// BRANCH (ORG STRUCTURE)
+//////////////////////////////////////////////////////
+
+model Branch {
+  id   String @id @default(uuid())
+  name String
+
+  companyId String
+  tenantId  String
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, name])
+  @@index([tenantId])
+}
+
+//////////////////////////////////////////////////////
+// PLAN (BILLING)
+//////////////////////////////////////////////////////
+
+model Plan {
+  id       String @id @default(uuid())
+  name     String
+  price    Float
+  interval String // monthly, yearly
+
+  features Json
+
+  createdAt DateTime @default(now())
+
+  subscriptions Subscription[]
+}
+
+//////////////////////////////////////////////////////
+// SUBSCRIPTION (STRIPE READY)
+//////////////////////////////////////////////////////
+
+model Subscription {
+  id String @id @default(uuid())
+
+  tenantId String
+  planId   String
+
+  status SubscriptionStatus @default(TRIAL)
+
+  stripeCustomerId String?
+  stripeSubId      String?
+
+  currentPeriodStart DateTime  @default(now())
+  currentPeriodEnd   DateTime?
+
+  cancelAtPeriodEnd Boolean @default(false)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+//////////////////////////////////////////////////////
+// AUDIT LOG (ENTERPRISE GRADE)
+//////////////////////////////////////////////////////
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  userId   String?
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  action   String
+  entity   String
+  entityId String?
+
+  ip        String?
+  userAgent String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([userId])
+}
