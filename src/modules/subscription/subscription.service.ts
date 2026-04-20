@@ -6,14 +6,14 @@ export class SubscriptionService {
   constructor(private prisma: PrismaService) {}
 
   create(data: any) {
-    return this.prisma.client.subscription.create({ data });
+    return this.prisma.subscription.create({ data });
   }
 
   findAll() {
-    return this.prisma.client.subscription.findMany();
+    return this.prisma.subscription.findMany();
   }
 
   remove(id: string) {
-    return this.prisma.client.subscription.delete({ where: { id } });
+    return this.prisma.subscription.delete({ where: { id } });
   }
 }

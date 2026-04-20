@@ -14,7 +14,7 @@ export class MembershipService {
     //////////////////////////////////////////////////////
     // PREVENT DUPLICATE MEMBERSHIP
     //////////////////////////////////////////////////////
-    const exists = await this.prisma.client.membership.findFirst({
+    const exists = await this.prisma.membership.findFirst({
       where: {
         userId: data.userId,
         tenantId: data.tenantId,
@@ -25,7 +25,7 @@ export class MembershipService {
       throw new ConflictException('User already in this tenant');
     }
 
-    return this.prisma.client.membership.create({
+    return this.prisma.membership.create({
       data: {
         userId: data.userId,
         tenantId: data.tenantId,
@@ -52,7 +52,7 @@ export class MembershipService {
   // GET ALL (GLOBAL ADMIN VIEW)
   //////////////////////////////////////////////////////
   findAll() {
-    return this.prisma.client.membership.findMany({
+    return this.prisma.membership.findMany({
       include: {
         user: true,
         tenant: true,
@@ -65,7 +65,7 @@ export class MembershipService {
   // GET BY TENANT (IMPORTANT FOR SAAS SCOPING)
   //////////////////////////////////////////////////////
   findByTenant(tenantId: string) {
-    return this.prisma.client.membership.findMany({
+    return this.prisma.membership.findMany({
       where: { tenantId },
       include: {
         user: true,
@@ -78,7 +78,7 @@ export class MembershipService {
   // GET USER TENANTS (SWITCH WORKSPACE FEATURE)
   //////////////////////////////////////////////////////
   findUserTenants(userId: string) {
-    return this.prisma.client.membership.findMany({
+    return this.prisma.membership.findMany({
       where: {
         userId,
         isActive: true,
@@ -94,7 +94,7 @@ export class MembershipService {
   // DEACTIVATE MEMBERSHIP (SOFT REMOVE)
   //////////////////////////////////////////////////////
   async deactivate(id: string) {
-    return this.prisma.client.membership.update({
+    return this.prisma.membership.update({
       where: { id },
       data: {
         isActive: false,

@@ -41,7 +41,7 @@ export class UserService {
     let username = baseUsername;
 
     // ⚡ OPTIMIZED: single query instead of loop
-    const existingUsers = await this.prisma.client.user.findMany({
+    const existingUsers = await this.prisma.user.findMany({
       where: {
         username: {
           startsWith: baseUsername,
@@ -67,7 +67,7 @@ export class UserService {
     // CREATE USER
     // =========================
     try {
-      return await this.prisma.client.user.create({
+      return await this.prisma.user.create({
         data: {
           name: data.name.trim(),
           email,
@@ -84,7 +84,7 @@ export class UserService {
   }
 
   findAll(tenantId: string) {
-    return this.prisma.client.user.findMany({
+    return this.prisma.user.findMany({
       where: {
         memberships: {
           some: {
@@ -111,7 +111,7 @@ export class UserService {
       throw new BadRequestException('User ID required');
     }
 
-    return this.prisma.client.user.delete({
+    return this.prisma.user.delete({
       where: { id },
     });
   }

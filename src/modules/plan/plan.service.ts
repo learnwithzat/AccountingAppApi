@@ -6,10 +6,10 @@ export class PlanService {
   constructor(private prisma: PrismaService) {}
 
   create(data: any) {
-    return this.prisma.client.plan.create({ data });
+    return this.prisma.plan.create({ data });
   }
 
   findAll() {
-    return this.prisma.client.plan.findMany();
+    return this.prisma.plan.findMany();
   }
 }

@@ -6,10 +6,10 @@ export class CompanyService {
   constructor(private prisma: PrismaService) {}
 
   create(data: any) {
-    return this.prisma.client.company.create({ data });
+    return this.prisma.company.create({ data });
   }
 
   findAll() {
-    return this.prisma.client.company.findMany();
+    return this.prisma.company.findMany();
   }
 }

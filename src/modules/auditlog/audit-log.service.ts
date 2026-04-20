@@ -6,10 +6,11 @@ export class AuditLogService {
   constructor(private prisma: PrismaService) {}
 
   create(data: any) {
-    return this.prisma.client.auditLog.create({ data });
+    return this.prisma.auditLog.create({ data });
   }
 
+
   findAll() {
-    return this.prisma.client.auditLog.findMany();
+    return this.prisma.auditLog.findMany();
   }
 }

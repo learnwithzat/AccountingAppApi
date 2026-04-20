@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from './../../prisma/prisma.service';
-import { Prisma, Tenant, RoleType } from '../../../generated/prisma/client';
+import { Prisma, Tenant, RoleType } from '@prisma/client';
 
 @Injectable()
 export class TenantService {
@@ -18,7 +18,7 @@ export class TenantService {
     data: Prisma.TenantCreateInput,
   ): Promise<Tenant> {
     try {
-      return await this.prisma.client.$transaction(async (tx) => {
+      return await this.prisma.$transaction(async (tx) => {
         // 1. CREATE TENANT
         const tenant = await tx.tenant.create({
           data: {
@@ -96,7 +96,7 @@ export class TenantService {
   // GET ALL TENANTS (ADMIN PURPOSE)
   //////////////////////////////////////////////////////
   async findAll(): Promise<Tenant[]> {
-    return this.prisma.client.tenant.findMany({
+    return this.prisma.tenant.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -105,7 +105,7 @@ export class TenantService {
   // GET TENANT BY ID (FULL DETAILS)
   //////////////////////////////////////////////////////
   async findOne(id: string): Promise<Tenant> {
-    const tenant = await this.prisma.client.tenant.findUnique({
+    const tenant = await this.prisma.tenant.findUnique({
       where: { id },
       include: {
         roles: true,
@@ -129,7 +129,7 @@ export class TenantService {
     await this.findOne(id);
 
     try {
-      return await this.prisma.client.tenant.update({
+      return await this.prisma.tenant.update({
         where: { id },
         data,
       });
@@ -147,7 +147,7 @@ export class TenantService {
   async remove(id: string): Promise<Tenant> {
     await this.findOne(id);
 
-    return this.prisma.client.tenant.delete({
+    return this.prisma.tenant.delete({
       where: { id },
     });
   }
@@ -156,7 +156,7 @@ export class TenantService {
   // GET TENANTS FOR USER (IMPORTANT)
   //////////////////////////////////////////////////////
   async getUserTenants(userId: string) {
-    return this.prisma.client.membership.findMany({
+    return this.prisma.membership.findMany({
       where: {
         userId,
         isActive: true,
@@ -175,7 +175,7 @@ export class TenantService {
   // GET USER CONTEXT (RBAC CORE)
   //////////////////////////////////////////////////////
   async getUserContext(userId: string, tenantId: string) {
-    const membership = await this.prisma.client.membership.findFirst({
+    const membership = await this.prisma.membership.findFirst({
       where: {
         userId,
         tenantId,

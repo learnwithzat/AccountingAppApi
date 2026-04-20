@@ -4,9 +4,9 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from './../../prisma/prisma.service';
 import { comparePassword, hashPassword } from '../../common/utils/hash.util';
 import { SetupDto } from './auth.setup.dto';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class AuthService {
@@ -19,7 +19,7 @@ export class AuthService {
   // REGISTER (optional standalone)
   //////////////////////////////////////////////////////
   async register(data: any) {
-    const exists = await this.prisma.client.user.findFirst({
+    const exists = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: data.email }, { username: data.username }],
       },
@@ -27,7 +27,7 @@ export class AuthService {
 
     if (exists) throw new ConflictException('User already exists');
 
-    return this.prisma.client.user.create({
+    return this.prisma.user.create({
       data: {
         name: data.name,
         email: data.email,
@@ -41,7 +41,7 @@ export class AuthService {
   // LOGIN
   //////////////////////////////////////////////////////
   async login(username: string, password: string) {
-    const user = await this.prisma.client.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { username },
       include: {
         memberships: {
@@ -80,7 +80,7 @@ export class AuthService {
   // ME
   //////////////////////////////////////////////////////
   async me(userId: string) {
-    const user = await this.prisma.client.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -127,7 +127,7 @@ export class AuthService {
   // CHECK SETUP
   //////////////////////////////////////////////////////
   async checkSetup() {
-    const tenantCount = await this.prisma.client.tenant.count();
+    const tenantCount = await this.prisma.tenant.count();
 
     return {
       isSetup: tenantCount > 0,
@@ -138,7 +138,7 @@ export class AuthService {
   // FULL SAAS SETUP (FIXED)
   //////////////////////////////////////////////////////
   async setup(data: SetupDto) {
-    return this.prisma.client.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       //////////////////////////////////////////////////
       // 1. USER
       //////////////////////////////////////////////////

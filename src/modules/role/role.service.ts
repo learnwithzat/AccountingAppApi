@@ -14,7 +14,7 @@ export class RoleService {
     tenantId: string;
     permissions?: string[];
   }) {
-    const exists = await this.prisma.client.role.findFirst({
+    const exists = await this.prisma.role.findFirst({
       where: {
         name: data.name,
         tenantId: data.tenantId,
@@ -25,7 +25,7 @@ export class RoleService {
       throw new ConflictException('Role already exists in this tenant');
     }
 
-    return this.prisma.client.role.create({
+    return this.prisma.role.create({
       data: {
         name: data.name,
         type: data.type,
@@ -56,7 +56,7 @@ export class RoleService {
   // GET ALL ROLES (TENANT SCOPED)
   //////////////////////////////////////////////////////
   async findAll(tenantId: string) {
-    return this.prisma.client.role.findMany({
+    return this.prisma.role.findMany({
       where: { tenantId },
       include: {
         permissions: {
@@ -80,7 +80,7 @@ export class RoleService {
   // GET SINGLE ROLE
   //////////////////////////////////////////////////////
   async findOne(roleId: string, tenantId: string) {
-    return this.prisma.client.role.findFirst({
+    return this.prisma.role.findFirst({
       where: {
         id: roleId,
         tenantId,
@@ -104,7 +104,7 @@ export class RoleService {
   // UPDATE ROLE
   //////////////////////////////////////////////////////
   async update(roleId: string, tenantId: string, data: any) {
-    return this.prisma.client.role.updateMany({
+    return this.prisma.role.updateMany({
       where: {
         id: roleId,
         tenantId,
@@ -117,7 +117,7 @@ export class RoleService {
   // DELETE ROLE (SAFE)
   //////////////////////////////////////////////////////
   async remove(roleId: string, tenantId: string) {
-    return this.prisma.client.role.deleteMany({
+    return this.prisma.role.deleteMany({
       where: {
         id: roleId,
         tenantId,
@@ -129,11 +129,11 @@ export class RoleService {
   // ASSIGN PERMISSIONS (IAM STYLE)
   //////////////////////////////////////////////////////
   async assignPermissions(roleId: string, permissionIds: string[]) {
-    await this.prisma.client.rolePermission.deleteMany({
+    await this.prisma.rolePermission.deleteMany({
       where: { roleId },
     });
 
-    return this.prisma.client.rolePermission.createMany({
+    return this.prisma.rolePermission.createMany({
       data: permissionIds.map((permissionId) => ({
         roleId,
         permissionId,

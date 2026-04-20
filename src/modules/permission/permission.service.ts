@@ -11,7 +11,7 @@ export class PermissionService {
   // GET ALL PERMISSIONS (GLOBAL CATALOG)
   //////////////////////////////////////////////////////
   findAll() {
-    return this.prisma.client.permission.findMany({
+    return this.prisma.permission.findMany({
       orderBy: {
         key: 'asc',
       },
@@ -22,7 +22,7 @@ export class PermissionService {
   // CREATE PERMISSION (ADMIN ONLY / SEED USE)
   //////////////////////////////////////////////////////
   create(data: { key: string; label: string }) {
-    return this.prisma.client.permission.create({
+    return this.prisma.permission.create({
       data,
     });
   }
@@ -31,7 +31,7 @@ export class PermissionService {
   // BULK CREATE (FOR SEEDING RBAC)
   //////////////////////////////////////////////////////
   createMany(data: { key: string; label: string }[]) {
-    return this.prisma.client.permission.createMany({
+    return this.prisma.permission.createMany({
       data,
       skipDuplicates: true,
     });
