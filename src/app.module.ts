@@ -1,4 +1,5 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config'; // ✅ ADD THIS
 
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -20,6 +21,11 @@ import { PermissionModule } from './modules/permission/permission.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'],
+    }),
+
     PrismaModule,
 
     AuthModule,
