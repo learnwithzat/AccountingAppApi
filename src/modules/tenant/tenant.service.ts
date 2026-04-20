@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from './../../prisma/prisma.service';
-import { Prisma, Tenant, RoleType } from '@prisma/client';
+import { Prisma, RoleType, Tenant } from '../../generated/prisma/client';
 
 @Injectable()
 export class TenantService {

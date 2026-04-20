@@ -1,5 +1,6 @@
-import { TenantStatus } from '@prisma/client';
+
 import { IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
+import { TenantStatus } from '../../generated/prisma/client';
 
 export class CreateTenantDto {
   @IsString()
