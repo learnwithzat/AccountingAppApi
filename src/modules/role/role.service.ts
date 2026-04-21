@@ -7,7 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from './../../prisma/prisma.service';
-import { RoleType } from '../../generated/prisma/client';
+import { RoleType } from '../../../prisma/generated/client';
 
 @Injectable()
 export class RoleService {

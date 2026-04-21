@@ -11,7 +11,7 @@ import {
   RoleType,
   Tenant,
   TenantStatus,
-} from '../../generated/prisma/client';
+} from '../../../prisma/generated/client';
 
 @Injectable()
 export class TenantService {
