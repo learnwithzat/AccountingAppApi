@@ -1,17 +1,24 @@
+/** @format */
+
 import {
   Injectable,
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from './../../prisma/prisma.service';
-import { Prisma, RoleType, Tenant } from '../../generated/prisma/client';
+import {
+  Prisma,
+  RoleType,
+  Tenant,
+  TenantStatus,
+} from '../../generated/prisma/client';
 
 @Injectable()
 export class TenantService {
   constructor(private prisma: PrismaService) {}
 
   //////////////////////////////////////////////////////
-  // CREATE TENANT WITH OWNER (MAIN METHOD)
+  // CREATE TENANT WITH OWNER (SAAS CORE FLOW)
   //////////////////////////////////////////////////////
   async createTenantWithOwner(
     userId: string,
@@ -19,65 +26,59 @@ export class TenantService {
   ): Promise<Tenant> {
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // 1. CREATE TENANT
+        //////////////////////////////////////////////////////
+        // NORMALIZE SLUG (IMPORTANT FOR SAAS)
+        //////////////////////////////////////////////////////
+        const normalizedData: Prisma.TenantCreateInput = {
+          ...data,
+          slug: data.slug?.toString().toLowerCase().trim(),
+          status: TenantStatus.ACTIVE,
+        };
+
+        //////////////////////////////////////////////////////
+        // CREATE TENANT
+        //////////////////////////////////////////////////////
         const tenant = await tx.tenant.create({
+          data: normalizedData,
+        });
+
+        //////////////////////////////////////////////////////
+        // CREATE DEFAULT ROLES (SEQUENTIAL - SAFE)
+        //////////////////////////////////////////////////////
+        const ownerRole = await tx.role.create({
           data: {
-            ...data,
-            status: 'ACTIVE',
+            name: 'Owner',
+            type: RoleType.OWNER,
+            tenantId: tenant.id,
           },
         });
 
-        // 2. CREATE DEFAULT ROLES
-        const roles = await Promise.all([
-          tx.role.create({
-            data: {
-              name: 'Owner',
-              type: RoleType.OWNER,
-              tenantId: tenant.id,
-            },
-          }),
-          tx.role.create({
-            data: {
-              name: 'Admin',
-              type: RoleType.ADMIN,
-              tenantId: tenant.id,
-            },
-          }),
-          tx.role.create({
-            data: {
-              name: 'Manager',
-              type: RoleType.MANAGER,
-              tenantId: tenant.id,
-            },
-          }),
-          tx.role.create({
-            data: {
-              name: 'Staff',
-              type: RoleType.STAFF,
-              tenantId: tenant.id,
-            },
-          }),
-        ]);
+        await tx.role.createMany({
+          data: [
+            { name: 'Admin', type: RoleType.ADMIN, tenantId: tenant.id },
+            { name: 'Manager', type: RoleType.MANAGER, tenantId: tenant.id },
+            { name: 'Staff', type: RoleType.STAFF, tenantId: tenant.id },
+          ],
+        });
 
-        // 3. FIND OWNER ROLE
-        const ownerRole = roles.find((r) => r.type === RoleType.OWNER);
-        if (!ownerRole) {
-          throw new Error('Owner role creation failed');
-        }
-
-        // 4. CREATE MEMBERSHIP (OWNER)
+        //////////////////////////////////////////////////////
+        // CREATE OWNER MEMBERSHIP
+        //////////////////////////////////////////////////////
         await tx.membership.create({
           data: {
             userId,
             tenantId: tenant.id,
             roleId: ownerRole.id,
+            isActive: true,
           },
         });
 
-        // 5. OPTIONAL: DEFAULT COMPANY
+        //////////////////////////////////////////////////////
+        // DEFAULT COMPANY
+        //////////////////////////////////////////////////////
         await tx.company.create({
           data: {
-            name: `${data.name} Company`,
+            name: `${tenant.name} Company`,
             tenantId: tenant.id,
           },
         });
@@ -93,16 +94,23 @@ export class TenantService {
   }
 
   //////////////////////////////////////////////////////
-  // GET ALL TENANTS (ADMIN PURPOSE)
+  // GET ALL TENANTS
   //////////////////////////////////////////////////////
-  async findAll(): Promise<Tenant[]> {
+  async findAll() {
     return this.prisma.tenant.findMany({
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        createdAt: true,
+      },
     });
   }
 
   //////////////////////////////////////////////////////
-  // GET TENANT BY ID (FULL DETAILS)
+  // GET SINGLE TENANT (FULL DETAILS)
   //////////////////////////////////////////////////////
   async findOne(id: string): Promise<Tenant> {
     const tenant = await this.prisma.tenant.findUnique({
@@ -115,9 +123,7 @@ export class TenantService {
       },
     });
 
-    if (!tenant) {
-      throw new NotFoundException('Tenant not found');
-    }
+    if (!tenant) throw new NotFoundException('Tenant not found');
 
     return tenant;
   }
@@ -131,7 +137,10 @@ export class TenantService {
     try {
       return await this.prisma.tenant.update({
         where: { id },
-        data,
+        data: {
+          ...data,
+          slug: data.slug?.toString().toLowerCase().trim(),
+        },
       });
     } catch (err: any) {
       if (err.code === 'P2002') {
@@ -153,7 +162,7 @@ export class TenantService {
   }
 
   //////////////////////////////////////////////////////
-  // GET TENANTS FOR USER (IMPORTANT)
+  // USER TENANTS (WORKSPACE SWITCHING)
   //////////////////////////////////////////////////////
   async getUserTenants(userId: string) {
     return this.prisma.membership.findMany({
@@ -162,7 +171,13 @@ export class TenantService {
         isActive: true,
       },
       include: {
-        tenant: true,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
         role: true,
       },
       orderBy: {
@@ -172,7 +187,7 @@ export class TenantService {
   }
 
   //////////////////////////////////////////////////////
-  // GET USER CONTEXT (RBAC CORE)
+  // USER CONTEXT (RBAC CORE)
   //////////////////////////////////////////////////////
   async getUserContext(userId: string, tenantId: string) {
     const membership = await this.prisma.membership.findFirst({
@@ -191,14 +206,18 @@ export class TenantService {
             },
           },
         },
-        tenant: true,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
       },
     });
 
     if (!membership) {
-      throw new NotFoundException(
-        'User is not part of this tenant or inactive',
-      );
+      throw new NotFoundException('No access to this tenant');
     }
 
     return membership;

@@ -1,6 +1,10 @@
 /** @format */
 
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from './../../prisma/prisma.service';
 
 @Injectable()
@@ -11,71 +15,112 @@ export class MembershipService {
   // CREATE MEMBERSHIP (USER → TENANT → ROLE)
   //////////////////////////////////////////////////////
   async create(data: { userId: string; tenantId: string; roleId: string }) {
-    //////////////////////////////////////////////////////
-    // PREVENT DUPLICATE MEMBERSHIP
-    //////////////////////////////////////////////////////
-    const exists = await this.prisma.membership.findFirst({
-      where: {
-        userId: data.userId,
-        tenantId: data.tenantId,
-      },
-    });
+    const { userId, tenantId, roleId } = data;
 
-    if (exists) {
-      throw new ConflictException('User already in this tenant');
-    }
+    return this.prisma.$transaction(async (tx) => {
+      //////////////////////////////////////////////////////
+      // CHECK USER
+      //////////////////////////////////////////////////////
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) throw new NotFoundException('User not found');
 
-    return this.prisma.membership.create({
-      data: {
-        userId: data.userId,
-        tenantId: data.tenantId,
-        roleId: data.roleId,
-        isActive: true,
-      },
-      include: {
-        user: true,
-        tenant: true,
-        role: {
-          include: {
-            permissions: {
-              include: {
-                permission: true,
+      //////////////////////////////////////////////////////
+      // CHECK TENANT
+      //////////////////////////////////////////////////////
+      const tenant = await tx.tenant.findUnique({
+        where: { id: tenantId },
+      });
+      if (!tenant) throw new NotFoundException('Tenant not found');
+
+      //////////////////////////////////////////////////////
+      // CHECK ROLE
+      //////////////////////////////////////////////////////
+      const role = await tx.role.findUnique({
+        where: { id: roleId },
+      });
+      if (!role) throw new NotFoundException('Role not found');
+
+      //////////////////////////////////////////////////////
+      // PREVENT DUPLICATE MEMBERSHIP
+      //////////////////////////////////////////////////////
+      const exists = await tx.membership.findFirst({
+        where: {
+          userId,
+          tenantId,
+        },
+      });
+
+      if (exists) {
+        throw new ConflictException('User already belongs to this tenant');
+      }
+
+      //////////////////////////////////////////////////////
+      // CREATE MEMBERSHIP
+      //////////////////////////////////////////////////////
+      return tx.membership.create({
+        data: {
+          userId,
+          tenantId,
+          roleId,
+          isActive: true,
+        },
+        include: {
+          user: {
+            select: { id: true, email: true, name: true },
+          },
+          tenant: true,
+          role: {
+            include: {
+              permissions: {
+                include: {
+                  permission: true,
+                },
               },
             },
           },
+        },
+      });
+    });
+  }
+
+  //////////////////////////////////////////////////////
+  // GET ALL (ADMIN VIEW - LIGHTER)
+  //////////////////////////////////////////////////////
+  findAll() {
+    return this.prisma.membership.findMany({
+      include: {
+        user: {
+          select: { id: true, email: true, name: true },
+        },
+        tenant: {
+          select: { id: true, name: true },
+        },
+        role: {
+          select: { id: true, name: true },
         },
       },
     });
   }
 
   //////////////////////////////////////////////////////
-  // GET ALL (GLOBAL ADMIN VIEW)
-  //////////////////////////////////////////////////////
-  findAll() {
-    return this.prisma.membership.findMany({
-      include: {
-        user: true,
-        tenant: true,
-        role: true,
-      },
-    });
-  }
-
-  //////////////////////////////////////////////////////
-  // GET BY TENANT (IMPORTANT FOR SAAS SCOPING)
+  // GET BY TENANT (SAAS SCOPING)
   //////////////////////////////////////////////////////
   findByTenant(tenantId: string) {
     return this.prisma.membership.findMany({
       where: { tenantId },
       include: {
-        user: true,
+        user: {
+          select: { id: true, email: true, name: true },
+        },
         role: true,
       },
     });
   }
 
   //////////////////////////////////////////////////////
-  // GET USER TENANTS (SWITCH WORKSPACE FEATURE)
+  // GET USER TENANTS (WORKSPACE SWITCHING)
   //////////////////////////////////////////////////////
   findUserTenants(userId: string) {
     return this.prisma.membership.findMany({
@@ -91,9 +136,17 @@ export class MembershipService {
   }
 
   //////////////////////////////////////////////////////
-  // DEACTIVATE MEMBERSHIP (SOFT REMOVE)
+  // DEACTIVATE MEMBERSHIP (SOFT DELETE)
   //////////////////////////////////////////////////////
   async deactivate(id: string) {
+    const membership = await this.prisma.membership.findUnique({
+      where: { id },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Membership not found');
+    }
+
     return this.prisma.membership.update({
       where: { id },
       data: {

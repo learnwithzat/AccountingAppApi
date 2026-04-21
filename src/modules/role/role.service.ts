@@ -1,23 +1,36 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+/** @format */
+
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from './../../prisma/prisma.service';
+import { RoleType } from '../../generated/prisma/client';
 
 @Injectable()
 export class RoleService {
   constructor(private prisma: PrismaService) {}
 
   //////////////////////////////////////////////////////
-  // CREATE ROLE (TENANT SAFE)
+  // CREATE ROLE (TENANT SAFE + CASE INSENSITIVE)
   //////////////////////////////////////////////////////
   async create(data: {
     name: string;
-    type: any;
+    type: RoleType;
     tenantId: string;
     permissions?: string[];
   }) {
+    const name = data.name.trim();
+
     const exists = await this.prisma.role.findFirst({
       where: {
-        name: data.name,
         tenantId: data.tenantId,
+        name: {
+          equals: name,
+          mode: 'insensitive',
+        },
       },
     });
 
@@ -27,13 +40,10 @@ export class RoleService {
 
     return this.prisma.role.create({
       data: {
-        name: data.name,
+        name,
         type: data.type,
         tenantId: data.tenantId,
 
-        //////////////////////////////////////////////////////
-        // OPTIONAL: attach permissions on creation
-        //////////////////////////////////////////////////////
         permissions: data.permissions?.length
           ? {
               create: data.permissions.map((permissionId) => ({
@@ -77,10 +87,10 @@ export class RoleService {
   }
 
   //////////////////////////////////////////////////////
-  // GET SINGLE ROLE
+  // GET SINGLE ROLE (SAFE)
   //////////////////////////////////////////////////////
   async findOne(roleId: string, tenantId: string) {
-    return this.prisma.role.findFirst({
+    const role = await this.prisma.role.findFirst({
       where: {
         id: roleId,
         tenantId,
@@ -93,42 +103,97 @@ export class RoleService {
         },
         memberships: {
           include: {
-            user: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
       },
     });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    return role;
   }
 
   //////////////////////////////////////////////////////
-  // UPDATE ROLE
+  // UPDATE ROLE (SAFE + VERIFIED)
   //////////////////////////////////////////////////////
   async update(roleId: string, tenantId: string, data: any) {
-    return this.prisma.role.updateMany({
+    const role = await this.prisma.role.findFirst({
       where: {
         id: roleId,
         tenantId,
       },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    return this.prisma.role.update({
+      where: { id: roleId },
       data,
     });
   }
 
   //////////////////////////////////////////////////////
-  // DELETE ROLE (SAFE)
+  // DELETE ROLE (SAFE + PROTECTED)
   //////////////////////////////////////////////////////
   async remove(roleId: string, tenantId: string) {
-    return this.prisma.role.deleteMany({
+    const role = await this.prisma.role.findFirst({
       where: {
         id: roleId,
         tenantId,
       },
     });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    return this.prisma.role.delete({
+      where: { id: roleId },
+    });
   }
 
   //////////////////////////////////////////////////////
-  // ASSIGN PERMISSIONS (IAM STYLE)
+  // ASSIGN PERMISSIONS (TENANT SAFE IAM)
   //////////////////////////////////////////////////////
   async assignPermissions(roleId: string, permissionIds: string[]) {
+    if (!permissionIds?.length) {
+      throw new BadRequestException('No permissions provided');
+    }
+
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    //////////////////////////////////////////////////////
+    // VERIFY PERMISSIONS EXIST
+    //////////////////////////////////////////////////////
+    const permissions = await this.prisma.permission.findMany({
+      where: {
+        id: {
+          in: permissionIds,
+        },
+      },
+    });
+
+    if (permissions.length !== permissionIds.length) {
+      throw new BadRequestException('Invalid permission IDs detected');
+    }
+
     await this.prisma.rolePermission.deleteMany({
       where: { roleId },
     });

@@ -1,4 +1,10 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+/** @format */
+
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from './../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 
@@ -13,10 +19,10 @@ interface CreateUserDto {
 export class UserService {
   constructor(private prisma: PrismaService) {}
 
+  //////////////////////////////////////////////////////
+  // CREATE USER (SAAS SAFE)
+  //////////////////////////////////////////////////////
   async create(data: CreateUserDto) {
-    // =========================
-    // VALIDATION
-    // =========================
     if (!data.name?.trim() || !data.email?.trim() || !data.password) {
       throw new BadRequestException('Missing required fields');
     }
@@ -31,81 +37,110 @@ export class UserService {
       throw new BadRequestException('Password too weak');
     }
 
-    // =========================
-    // USERNAME GENERATION
-    // =========================
     const baseUsername = (
       data.username?.trim() || email.split('@')[0]
     ).toLowerCase();
 
-    let username = baseUsername;
-
-    // ⚡ OPTIMIZED: single query instead of loop
-    const existingUsers = await this.prisma.user.findMany({
-      where: {
-        username: {
-          startsWith: baseUsername,
-        },
-      },
-      select: { username: true },
-    });
-
-    const usernameSet = new Set(existingUsers.map((u) => u.username));
-
-    let counter = 1;
-    while (usernameSet.has(username)) {
-      username = `${baseUsername}${counter}`;
-      counter++;
-    }
-
-    // =========================
-    // HASH PASSWORD
-    // =========================
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    // =========================
-    // CREATE USER
-    // =========================
-    try {
-      return await this.prisma.user.create({
-        data: {
-          name: data.name.trim(),
-          email,
-          username,
-          password: hashedPassword,
-        },
-      });
-    } catch (err: any) {
-      if (err.code === 'P2002') {
-        throw new BadRequestException('Email or username already exists');
+    //////////////////////////////////////////////////////
+    // SAFE USER CREATION WITH RETRY (NO RACE CONDITION)
+    //////////////////////////////////////////////////////
+    let attempt = 0;
+    let username = baseUsername;
+
+    while (attempt < 5) {
+      try {
+        return await this.prisma.user.create({
+          data: {
+            name: data.name.trim(),
+            email,
+            username,
+            password: hashedPassword,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            username: true,
+            createdAt: true,
+          },
+        });
+      } catch (err: any) {
+        //////////////////////////////////////////////////////
+        // UNIQUE CONSTRAINT ERROR
+        //////////////////////////////////////////////////////
+        if (err.code === 'P2002') {
+          const target = err.meta?.target;
+
+          if (target?.includes('email')) {
+            throw new ConflictException('Email already exists');
+          }
+
+          if (target?.includes('username')) {
+            attempt++;
+            username = `${baseUsername}${attempt}`;
+            continue;
+          }
+
+          throw new ConflictException('User already exists');
+        }
+
+        throw err;
       }
-      throw err;
     }
+
+    throw new ConflictException('Could not generate unique username');
   }
 
+  //////////////////////////////////////////////////////
+  // GET USERS BY TENANT (SAAS SAFE VIEW)
+  //////////////////////////////////////////////////////
   findAll(tenantId: string) {
     return this.prisma.user.findMany({
       where: {
         memberships: {
           some: {
-            tenantId: tenantId, // 🔥 KEY FIX
+            tenantId,
+            isActive: true,
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        username: true,
+        createdAt: true,
         memberships: {
           where: {
-            tenantId: tenantId, // only current tenant
+            tenantId,
           },
-          include: {
-            role: true,
-            tenant: true,
+          select: {
+            id: true,
+            role: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              },
+            },
+            tenant: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
           },
         },
       },
     });
   }
 
+  //////////////////////////////////////////////////////
+  // DELETE USER (HARD DELETE - CONSIDER SOFT DELETE)
+  //////////////////////////////////////////////////////
   async remove(id: string) {
     if (!id) {
       throw new BadRequestException('User ID required');
