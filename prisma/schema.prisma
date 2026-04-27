@@ -1,5 +1,5 @@
 generator client {
-  provider     = "prisma-client"
+  provider     = "prisma-client-js"
   output       = "./generated"
   moduleFormat = "cjs"
 }
@@ -8,8 +8,7 @@ datasource db {
   provider = "postgresql"
 }
 
-//////////////////////////////////////////////////////
-// ENUMS
+/////////////////////////////// ENUMS
 //////////////////////////////////////////////////////
 
 enum TenantStatus {
