@@ -1,4 +1,3 @@
-
 import { IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
 import { TenantStatus } from '../../../prisma/generated/client';
 

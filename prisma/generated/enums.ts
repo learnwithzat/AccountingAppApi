@@ -37,3 +37,24 @@ export const RoleType = {
 } as const
 
 export type RoleType = (typeof RoleType)[keyof typeof RoleType]
+
+
+export const DocumentType = {
+  EMPLOYEE: 'EMPLOYEE',
+  VEHICLE: 'VEHICLE',
+  VENDOR: 'VENDOR',
+  INSURANCE: 'INSURANCE',
+  LICENSE: 'LICENSE',
+  OTHER: 'OTHER'
+} as const
+
+export type DocumentType = (typeof DocumentType)[keyof typeof DocumentType]
+
+
+export const DocumentStatus = {
+  ACTIVE: 'ACTIVE',
+  EXPIRING_SOON: 'EXPIRING_SOON',
+  EXPIRED: 'EXPIRED'
+} as const
+
+export type DocumentStatus = (typeof DocumentStatus)[keyof typeof DocumentStatus]

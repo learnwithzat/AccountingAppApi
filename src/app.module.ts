@@ -18,6 +18,7 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { AuditLogModule } from './modules/auditlog/audit-log.module';
 import { PermissionModule } from './modules/permission/permission.module';
+import { DocumentModule } from './modules/documents/document.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { PermissionModule } from './modules/permission/permission.module';
     PlanModule,
     SubscriptionModule,
     AuditLogModule,
+    DocumentModule,
   ],
 })
 export class AppModule implements NestModule {

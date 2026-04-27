@@ -94,3 +94,18 @@ export type Subscription = Prisma.SubscriptionModel
  * 
  */
 export type AuditLog = Prisma.AuditLogModel
+/**
+ * Model Document
+ * 
+ */
+export type Document = Prisma.DocumentModel
+/**
+ * Model DocumentFile
+ * 
+ */
+export type DocumentFile = Prisma.DocumentFileModel
+/**
+ * Model DocumentAlert
+ * 
+ */
+export type DocumentAlert = Prisma.DocumentAlertModel

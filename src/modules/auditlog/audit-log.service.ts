@@ -9,7 +9,6 @@ export class AuditLogService {
     return this.prisma.auditLog.create({ data });
   }
 
-
   findAll() {
     return this.prisma.auditLog.findMany();
   }

@@ -61,7 +61,10 @@ export const ModelName = {
   Branch: 'Branch',
   Plan: 'Plan',
   Subscription: 'Subscription',
-  AuditLog: 'AuditLog'
+  AuditLog: 'AuditLog',
+  Document: 'Document',
+  DocumentFile: 'DocumentFile',
+  DocumentAlert: 'DocumentAlert'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -213,6 +216,50 @@ export const AuditLogScalarFieldEnum = {
 } as const
 
 export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
+
+
+export const DocumentScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  type: 'type',
+  issueDate: 'issueDate',
+  expiryDate: 'expiryDate',
+  notes: 'notes',
+  tenantId: 'tenantId',
+  companyId: 'companyId',
+  branchId: 'branchId',
+  ownerType: 'ownerType',
+  ownerId: 'ownerId',
+  status: 'status',
+  createdById: 'createdById',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DocumentScalarFieldEnum = (typeof DocumentScalarFieldEnum)[keyof typeof DocumentScalarFieldEnum]
+
+
+export const DocumentFileScalarFieldEnum = {
+  id: 'id',
+  documentId: 'documentId',
+  fileUrl: 'fileUrl',
+  fileName: 'fileName',
+  fileType: 'fileType',
+  uploadedAt: 'uploadedAt'
+} as const
+
+export type DocumentFileScalarFieldEnum = (typeof DocumentFileScalarFieldEnum)[keyof typeof DocumentFileScalarFieldEnum]
+
+
+export const DocumentAlertScalarFieldEnum = {
+  id: 'id',
+  documentId: 'documentId',
+  daysBefore: 'daysBefore',
+  isSent: 'isSent',
+  sentAt: 'sentAt'
+} as const
+
+export type DocumentAlertScalarFieldEnum = (typeof DocumentAlertScalarFieldEnum)[keyof typeof DocumentAlertScalarFieldEnum]
 
 
 export const SortOrder = {
